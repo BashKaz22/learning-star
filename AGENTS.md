@@ -120,14 +120,23 @@ type Result<T, E = Error> = { ok: true; value: T } | { ok: false; error: E };
 
 ### Content Production Team (Background)
 
-| Agent | Role | Capabilities |
-|-------|------|--------------|
-| **Planner** | Analyzes uploaded content, creates lesson structure | Identifies concepts, prerequisites, learning path |
-| **Librarian** | Fetches supplementary materials, examples, practice problems | Web search, documentation lookup |
-| **Designer** | Decides visual layout, interactive elements, UI style | Matches user's preferred learning style |
-| **Builder** | Generates actual lesson content, slides, quizzes | Creates markdown, MDX, interactive blocks |
-| **Debugger** | Fixes issues in generated content, handles edge cases | Validates math, code examples, links |
-| **Leader** | Orchestrates team, final quality check, can override any agent | Strongest model, ensures coherence |
+These agents do not interact with students directly. They collaborate behind the scenes to generate and maintain teaching content. All outputs must be traceable to a specific course, unit, and source material (page / slide / exercise).
+
+| Agent | Role | Input | Output |
+|-------|------|-------|--------|
+| **Planner** | Breaks down uploaded content, designs knowledge structure and pacing for the lesson | `UnitContent` (extracted text + exercises + metadata) + course objectives (if any) | `LessonPlan`: learning objectives, topic list (with prerequisites, difficulty), recommended teaching order, which concepts need worked examples / practice |
+| **Librarian** | Supplements reference materials, worked examples, practice problem sources | Current `LessonPlan` topics + course/unit tags | `SupplementalMaterials`: reference links, textbook chapters, canonical examples, problem sources per topic (always cite sources, never fabricate) |
+| **Designer** | Decides visual layout, page types, interactive elements, applies UI/teaching style | `LessonPlan` + learner preferences (teaching style, UI theme) | `LessonUXBlueprint`: ordered list of pages (explanation / worked example / interactive question / quiz…) and block types per page (text / formula / quiz / note / extensionButton, etc.) |
+| **Builder** | Generates actual teaching content: explanations, step-by-step solutions, questions & options, hints | `LessonUXBlueprint` + `UnitContent` fragments + `SupplementalMaterials` | `LessonPages[]`: structured JSON, each page composed of blocks (text / formula / image / quiz / hint / note…), directly renderable as web pages or exportable as slides |
+| **Debugger** | Validates and fixes errors & inconsistencies in generated content | `LessonPages[]` + original `UnitContent` + answer keys | Corrected `LessonPages[]` + `IssuesReport`: what was changed and why (e.g., formula error, definition inconsistency, problem beyond scope) |
+| **Leader** | Chief editor / curriculum lead: orchestrates the entire pipeline, final gatekeeper for style & difficulty | All intermediate artifacts (`LessonPlan` / `Blueprint` / `LessonPages` / `IssuesReport`) + project-level constraints | `ApprovedLesson`: finalized version cleared for publication; if rejected, provides specific revision notes and returns task to Planner / Designer / Builder |
+
+#### Shared Rules for Content Production Agents
+
+1. **Source grounding**: All conclusions and content must originate from uploaded materials, explicitly cited external references, or a provided syllabus. Never invent theorems, laws, or problem contexts.
+2. **Structured output**: All outputs must be structured (JSON / lists / sections), not unparseable prose, to enable frontend and backend reuse.
+3. **Math notation**: Store all math symbols and formulas in LaTeX; the frontend rendering engine handles display.
+4. **Uncertainty disclosure**: If information is insufficient for a reliable answer, explicitly flag uncertain areas and suggest what additional materials are needed (e.g., exam syllabus, past papers).
 
 ### Agent Communication Pattern
 
@@ -192,13 +201,27 @@ knowledge_points (id, user_id, lesson_id, content, explanation, created_at)
 | `eli5` | Explain Like I'm 5, maximum simplicity |
 | `progressive` | Start simple, gradually add complexity |
 
-## UI Styles (3 Presets, Reusable Components)
+## UI Styles (4 Presets, Reusable Components)
 
-| Style | Description |
-|-------|-------------|
-| `minimal` | Clean, lots of whitespace, focus on content |
-| `high-contrast` | Bold colors, clear visual hierarchy, accessible |
-| `playful` | Rounded corners, illustrations, gamified elements |
+| Style | Description | Inspiration |
+|-------|-------------|-------------|
+| `neobrutalism` | Bold borders, raw aesthetic, high contrast blocks, playful yet structured | Gumroad, Figma community |
+| `glassmorphism` | Frosted glass effects, subtle transparency, soft shadows (use sparingly) | Apple Vision Pro, Linear |
+| `retro` | Pixel-friendly fonts, nostalgic vibe, warm muted palette—NOT cyberpunk neon | 90s computing, indie games |
+| `terminal` | Monospace typography, clean grid, developer-friendly, minimal chrome | VS Code, Vercel dashboards |
+
+### Typography Guidelines
+
+Avoid generic system fonts. Prioritize distinctive yet highly readable typefaces:
+
+| Category | Recommended Fonts | Notes |
+|----------|-------------------|-------|
+| Display / Headings | `Space Grotesk`, `Clash Display`, `Cabinet Grotesk` | Bold, geometric, modern |
+| Body Text | `Inter`, `Satoshi`, `General Sans` | Clean, excellent legibility |
+| Monospace / Code | `JetBrains Mono`, `Berkeley Mono`, `Fira Code` | Ligatures, coding-friendly |
+| Retro / Pixel | `VT323`, `Press Start 2P`, `Silkscreen` | Use sparingly for accents |
+
+All fonts should be loaded via Google Fonts or self-hosted for performance. Define in `tailwind.config.ts` with proper fallbacks.
 
 ---
 
