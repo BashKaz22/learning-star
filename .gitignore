@@ -37,4 +37,9 @@ supabase/.temp/
 
 # Misc
 *.tsbuildinfo
-next-env.d.ts
+
+# Vercel
+.vercel
+
+# pnpm
+pnpm-lock.yaml
